@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: laravel-app
+  template:
+    metadata:
+      labels:
+        app: laravel-app
+    spec:
+      containers:
+        - name: laravel-app
+          image: hsouna2/laravel-setup:latest
+          ports:
+            - containerPort: 8000
+          command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
