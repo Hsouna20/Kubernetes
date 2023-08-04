@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drupal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: drupal
+  template:
+    metadata:
+      labels:
+        app: drupal
+    spec:
+      containers:
+        - name: drupal
+          image: drupal:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: DRUPAL_DATABASE_HOST
+              value: postgres-service 
+            - name: DRUPAL_DATABASE_NAME
+              value: drupalpostgres
+            - name: DRUPAL_DATABASE_USER
+              value: hassenmedianet
+            - name: DRUPAL_DATABASE_PASSWORD
+              value: StageMedianet2023@
