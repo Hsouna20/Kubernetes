@@ -15,13 +15,13 @@ This guide provides step-by-step instructions on how to deploy a Laravel app usi
 ## Step 2: Build and Push the Docker Image
 
 - Build the Docker image using the command: 
-    
+    ```bash
      docker build -t your-dockerhub-username/laravel-app:latest .
-    
+    ```
 - Log in to Docker Hub using 
-    
+    ```bash
      docker login
-
+    ```
 - Push the image to Docker Hub with 
     ```bash 
      docker push your-dockerhub-username/laravel-app:latest
