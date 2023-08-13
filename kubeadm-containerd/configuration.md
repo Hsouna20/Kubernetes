@@ -142,7 +142,7 @@ echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt
 
 
 # Update the apt package index and install kubeadm, kubelet, and kubeclt
-     sudo apt update && sudo apt install -y kubelet=1.23.1-00 kubectl=1.23.1-00 kubeadm=1.23.1-00
+     sudo apt update && sudo apt install -y kubelet kubectl kubeadm
 ```
 
 ### Initializing the control-plane node
@@ -216,9 +216,9 @@ Now let's Check the cluster by running `kubectl get nodes` command on the master
      kubectl get nodes
 
 NAME              STATUS     ROLES                  AGE    VERSION
--master            Ready      control-plane,master   40m5s  v1.23.1
--worker1           Ready      <none>                 3m7s   v1.23.1
--worker2           Ready      <none>                 2m3s   v1.23.1
+-master            Ready      control-plane,master   40m5s  v1.27.4
+-worker1           Ready      <none>                 3m7s   v1.27.4
+-worker2           Ready      <none>                 2m3s   v1.27.4
 ```
 
 
