@@ -149,7 +149,7 @@ echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt
 At this point, we have 3 nodes with docker, `kubeadm`, `kubelet`, and `kubectl` installed. Now we must initialize the Kubernetes master, which will manage the whole cluster and the pods running within the cluster `kubeadm init` by specifiy the address of the master node and the ipv4 address pool of the pods 
 
 ```bash
-     sudo kubeadm init --apiserver-advertise-address=<master-ip-address> --pod-network-cidr=192.168.0.0/16
+     sudo kubeadm init --apiserver-advertise-address=<master-ip-address> --pod-network-cidr=10.244.0.0/16
 ```
 You should wait a few minutes until the initialization is completed. The first initialization will take a lot of time if your connexion speed is slow (pull the images of the cluster components)
 
