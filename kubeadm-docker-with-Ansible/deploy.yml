@@ -1,0 +1,181 @@
+---
+- name: Configure Kubernetes Cluster
+  hosts: k8sMaster,k8sWorker
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Disable Swap Memory
+      command: "{{ item }}"
+      loop:
+        - sudo swapoff -a
+        - sudo sed -i '/ swap / s/^\(.*\)$/\1/g' /etc/fstab
+
+    - name: Stop and Disable Firewall
+      systemd:
+        name: "{{ item }}"
+        enabled: no
+        state: stopped
+      loop:
+        - ufw
+
+    - name: Enable Bridged Traffic
+      shell: |
+        lsmod | grep br_netfilter
+        sudo modprobe br_netfilter
+      ignore_errors: yes
+
+    - name: Create /etc/modules-load.d/k8s.conf if not exists
+      file:
+        path: /etc/modules-load.d/k8s.conf
+        state: touch
+      become: true
+
+    - name: Add "br_netfilter" to Modules Load Configuration
+      lineinfile:
+        path: /etc/modules-load.d/k8s.conf
+        line: "br_netfilter"
+      ignore_errors: yes
+
+    - name: Create /etc/sysctl.d/k8s.conf if not exists
+      file:
+        path: /etc/sysctl.d/k8s.conf
+        state: touch
+      become: true
+
+    - name: Configure bridge-nf-call settings
+      lineinfile:
+        path: "/etc/sysctl.d/k8s.conf"
+        line: "{{ item }}"
+      loop:
+        - "net.bridge.bridge-nf-call-ip6tables = 1"
+        - "net.bridge.bridge-nf-call-iptables = 1"
+      notify: Apply sysctl changes
+
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+    - name: Install dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg-agent
+        - software-properties-common
+
+    - name: Add GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository to apt
+      apt_repository:
+        repo: "{{ docker_repository_url }}"
+        state: present
+      vars:
+        docker_repository_url: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+
+    - name: Install Docker
+      apt:
+        name: "{{ item }}"
+        state: latest
+        update_cache: yes
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+
+    - name: Configure Cgroup Driver for Docker
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "exec-opts": ["native.cgroupdriver=systemd"],
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "100m"
+            },
+            "storage-driver": "overlay2"
+          }
+      notify: Restart Docker Service
+
+    - name: Enable Docker Service on Startup
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+
+    - name: Install apt-transport-https
+      apt:
+        name: apt-transport-https
+        state: present
+
+    - name: Add Kubernetes repository key
+      shell: curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+      args:
+        executable: /bin/bash
+
+    - name: Create Kubernetes repository configuration
+      blockinfile:
+        path: /etc/apt/sources.list.d/kubernetes.list
+        block: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+        create: yes
+
+    - name: Update apt package index and install Kubernetes components
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - kubelet=1.23.1-00
+        - kubectl=1.23.1-00
+        - kubeadm=1.23.1-00
+          
+  handlers:
+    - name: Apply sysctl changes
+      command: sudo sysctl --system
+
+    - name: Restart Docker Service
+      systemd:
+        name: docker
+        state: restarted
+   
+- name: Initialize Kubernetes Cluster master node
+  hosts: k8sMaster
+  become: true
+  tasks:
+    - name: Initialize Control-Plane Node
+      command: kubeadm init --apiserver-advertise-address=192.168.43.41 --pod-network-cidr=192.168.0.0/16
+      register: kubeadm_init_result
+
+    - name: Configure kubectl
+      shell: |
+        mkdir -p $HOME/.kube
+        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+    - name: Install Tigera Calico Operator
+      shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/tigera-operator.yaml
+
+    - name: Install Calico Custom Resource Definitions
+      shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml
+
+
+- name: Join Worker Nodes to Kubernetes Cluster
+  hosts: k8sWorker
+  become: true
+  tasks:
+    - name: Extract kubeadm join command
+      command: kubeadm token create --print-join-command
+      register: kubeadm_join_command
+      delegate_to: 192.168.43.5
+      changed_when: false
+
+    - name: Run kubeadm join on worker nodes
+      command: "{{ kubeadm_join_command.stdout }}"
+      when: kubeadm_join_command.stdout is defined
