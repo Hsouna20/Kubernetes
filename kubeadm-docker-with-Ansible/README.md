@@ -83,3 +83,5 @@ Add a line below the %sudo line to grant permissions to the Ansible user without
 ansible_user ALL=(ALL:ALL) NOPASSWD:ALL
 ```
 Replace 'ansible_user' with the actual username of the Ansible user. This line allows the Ansible user to execute any command with sudo privileges without being prompted for a password.
+### 3- Create the playbook :
+Now we can create the playbook.yml file to automate the cofiguration process of the cluster .
