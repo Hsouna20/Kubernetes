@@ -170,12 +170,11 @@
   hosts: k8sWorker
   become: true
   tasks:
-    - name: Extract kubeadm join command
-      command: kubeadm token create --print-join-command
-      register: kubeadm_join_command
-      delegate_to: 192.168.43.5
-      changed_when: false
+    - name: Get kubeadm join command from master initialization output
+      set_fact:
+        kubeadm_join_command: "{{ kubeadm_init_result.stdout_lines[-1] }}"
+      when: kubeadm_init_result.stdout_lines is defined
 
     - name: Run kubeadm join on worker nodes
-      command: "{{ kubeadm_join_command.stdout }}"
-      when: kubeadm_join_command.stdout is defined
+      command: "{{ kubeadm_join_command }}"
+      when: kubeadm_join_command is defined
